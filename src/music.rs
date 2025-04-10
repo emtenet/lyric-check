@@ -23,6 +23,7 @@ pub struct Word {
     pub start: usize,
     pub end: usize,
     pub text: String,
+    pub phrases: Vec<Phrase>,
 }
 
 #[derive(Debug)]
@@ -400,11 +401,42 @@ impl<'dom> Builder<'dom> {
         });
     }
 
-    fn build(mut self) -> Result<Part> {
-        if self.parts.len() != 1 {
-            bail!("More than one part");
+    fn build(self) -> Result<Part> {
+        let mut parts = self.parts.into_iter();
+        let mut part = parts.next().unwrap();
+        for other in parts {
+            for phrase in other.phrases {
+                part.merge(phrase);
+            }
         }
-        Ok(self.parts.pop().unwrap())
+        Ok(part)
+    }
+}
+
+impl Part {
+    fn merge(&mut self, other: Phrase) {
+        for (index, phrase) in self.phrases.iter_mut().enumerate() {
+            if other.end <= phrase.start {
+                self.phrases.insert(index, other);
+                return;
+            }
+            if other.start < phrase.end {
+                phrase.merge(other);
+                return;
+            }
+        }
+    }
+}
+
+impl Phrase {
+    fn merge(&mut self, other: Phrase) {
+        for word in self.words.iter_mut() {
+            if other.start < word.end {
+                word.phrases.push(other);
+                return;
+            }
+        }
+        unreachable!()
     }
 }
 

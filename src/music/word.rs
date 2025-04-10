@@ -36,6 +36,7 @@ impl Builder {
                     start: syllable.start,
                     end: syllable.end,
                     text: String::from(syllable.text),
+                    phrases: Vec::new(),
                 });
             }
 
@@ -47,6 +48,7 @@ impl Builder {
                     start: syllable.start,
                     end: syllable.end,
                     text: String::from(syllable.text),
+                    phrases: Vec::new(),
                 });
             }
 
@@ -59,6 +61,7 @@ impl Builder {
                         start: syllable.start,
                         end: syllable.end,
                         text: String::from(syllable.text),
+                        phrases: Vec::new(),
                     });
                 },
 
@@ -72,6 +75,7 @@ impl Builder {
                         start: syllable.start,
                         end: syllable.end,
                         text: String::from(syllable.text),
+                        phrases: Vec::new(),
                     });
                 },
         }
