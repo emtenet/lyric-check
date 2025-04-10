@@ -3,20 +3,8 @@ use roxmltree::{
     Document,
     Node,
 };
-use std::collections::HashMap;
 use std::ops::Range;
 use std::str::FromStr;
-
-//  <part>
-//      <measure>
-//          <note>
-//              <rest/>
-//              <lyric number="part14verse1">
-//                  <syllabic>begin</syllabic> begin/end/single
-//                  <text>Eve</text>
-//          <direction>
-//              <direction-type>
-//                  <words>""
 
 pub fn read<'str>(xml: &'str str) -> Result<()> {
     let doc = Document::parse_with_options(xml, roxmltree::ParsingOptions {
@@ -33,27 +21,31 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
     };
     let bars = read_bars(part)?;
 
+    println!("BARS [");
+    for bar in bars.iter() {
+        println!("  {bar:?}");
+    }
+    println!("]");
+
     let mut builder = Builder::new(bars);
 
-    let work = child_element(root, "work")?;
-    let title = child_element_text(work, "work-title")?;
-    builder.title(title);
+    //let work = child_element(root, "work")?;
+    //let title = child_element_text(work, "work-title")?;
+    //builder.title(title);
 
-    let parts = child_element(root, "part-list")?;
-    for part in parts.children() {
-        if part.has_tag_name("score-part") {
-            let id = attribute(part, "id")?;
-            let name = child_element_text(part, "part-name")?;
-            builder.part_add(id, name);
-        }
-    }
+    //let parts = child_element(root, "part-list")?;
+    //for part in parts.children() {
+    //    if part.has_tag_name("score-part") {
+    //        let id = attribute(part, "id")?;
+    //        let name = child_element_text(part, "part-name")?;
+    //        builder.part_add(id, name);
+    //    }
+    //}
 
     for part in root.children() {
         if !part.has_tag_name("part") {
             continue;
         }
-        let id = attribute(part, "id")?;
-        builder.part_start(id)?;
         for measure in part.children() {
             if !measure.is_element() {
                 continue;
@@ -76,7 +68,6 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
 
 #[derive(Debug)]
 struct Bar {
-    number: usize,
     duration: usize,
 }
 
@@ -97,15 +88,56 @@ impl Bars {
         self.bars.len()
     }
 
-    //fn iter(&self) -> BarsIter {
-    //    BarsIter {
-    //        bars: self,
-    //    }
-    //}
+    fn iter(&self) -> BarsIter {
+        BarsIter {
+            bars: &self.bars,
+            repeats: self.repeats.iter(),
+            verse: None,
+            indexes: Range { start: 0, end: 0 },
+            tick: 0,
+        }
+    }
 }
 
-//struct BarsIter<'a> {
-//}
+struct BarsIter<'a> {
+    bars: &'a Vec<Bar>,
+    repeats: std::slice::Iter<'a, Repeat>,
+    verse: Option<usize>,
+    indexes: Range<usize>,
+    tick: usize,
+}
+
+#[derive(Debug)]
+struct BarIter {
+    index: usize,
+    verse: Option<usize>,
+    tick: usize,
+}
+
+impl<'a> std::iter::Iterator for BarsIter<'a> {
+    type Item = BarIter;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(index) = self.indexes.next() {
+                let item = BarIter {
+                    index,
+                    verse: self.verse,
+                    tick: self.tick,
+                };
+                let bar = &self.bars[index];
+                self.tick += bar.duration;
+                return Some(item);
+            }
+            if let Some(repeat) = self.repeats.next() {
+                self.verse = repeat.verse;
+                self.indexes = repeat.bars.clone();
+            } else {
+                return None;
+            }
+        }
+    }
+}
 
 struct BarsBuilder {
     first_number: usize,
@@ -158,7 +190,6 @@ impl BarsBuilder {
             bail!("Unexpected bar {number}, expecting {}", self.next_number);
         }
         self.bars.push(Bar {
-            number: self.first_number + self.index,
             duration: self.max_duration,
         });
         self.next_number += 1;
@@ -300,7 +331,6 @@ impl BarsBuilder {
 
     fn build(mut self) -> Result<Bars> {
         self.bars.push(Bar {
-            number: self.first_number + self.index,
             duration: self.max_duration,
         });
         match self.repeat {
@@ -557,21 +587,6 @@ fn has_child_element<'xml, 'str: 'xml>(
     None
 }
 
-fn child_element<'xml, 'str: 'xml>(
-    node: Node<'xml, 'str>,
-    name: &str,
-) -> Result<Node<'xml, 'str>> {
-    for child in node.children() {
-        if child.has_tag_name(name) {
-            return Ok(child);
-        }
-
-    }
-
-    let tag = node.tag_name().name();
-    bail!("Expecting child <{name}> in <{tag}>")
-}
-
 fn child_element_text<'xml, 'str: 'xml>(
     node: Node<'xml, 'str>,
     name: &str,
@@ -656,89 +671,26 @@ impl<'xml> SyllableBar<'xml> {
 }
 
 struct Builder<'xml> {
-    title: String,
-    part_ids: HashMap<String, usize>,
-    parts: Vec<Part>,
     bars: Bars,
-    part_index: usize,
     next_number: usize,
-    bar_index: usize,
-    //bar_tick: usize,
     bar_duration: usize,
-    //voices: HashMap<(usize, usize), Voice>,
     syllable_exist: bool,
     syllable_bars: Vec<SyllableBar<'xml>>,
     syllable_bar: SyllableBar<'xml>,
 }
-
-struct Part {
-    name: String,
-}
-
-//struct Voice {
-//    part: usize,
-//    voice: usize,
-//    verses: Vec<Verse>,
-//}
-//
-//struct Verse {
-//    words: Vec<Word>,
-//    word: Option<Word>,
-//}
-//
-//struct Tick {
-//    bar: usize,
-//    tick: usize,
-//}
-//
-//struct Word {
-//    ticks: Range<Tick>,
-//    word: String,
-//}
 
 impl<'dom> Builder<'dom> {
     fn new(bars: Bars) -> Self {
         let next_number = bars.first_number;
         let bar_count = bars.count();
         Builder {
-            title: String::new(),
-            part_ids: HashMap::new(),
-            parts: Vec::new(),
             bars,
-            part_index: 0,
             next_number,
-            bar_index: 0,
-            //bar_tick: 0,
             bar_duration: 0,
-            //voices: HashMap::new(),
             syllable_exist: false,
             syllable_bars: Vec::with_capacity(bar_count),
             syllable_bar: SyllableBar::new(),
         }
-    }
-
-    fn title(&mut self, title: &str) {
-        self.title = String::from(title);
-    }
-
-    fn part_add(&mut self, id: &str, name: &str) {
-        let part = self.parts.len();
-        self.part_ids.insert(String::from(id), part);
-        self.parts.push(Part {
-            name: String::from(name),
-        });
-    }
-
-    fn part_start(&mut self, id: &str) -> Result<()> {
-        let Some(part_index) = self.part_ids.get(id) else {
-            bail!("Cannot find part {id}");
-        };
-        self.part_index = *part_index;
-        self.next_number = self.bars.first_number;
-        self.bar_index = 0;
-        self.bar_duration = 0;
-        self.syllable_exist = false;
-        Ok(())
     }
 
     fn part_end(&mut self) {
@@ -748,17 +700,22 @@ impl<'dom> Builder<'dom> {
         );
         bar.sort();
         self.syllable_bars.push(bar);
-        let bars = std::mem::replace(
-            &mut self.syllable_bars,
-            Vec::with_capacity(self.bars.count()),
-        );
         if self.syllable_exist {
+            let syllable_bars = std::mem::replace(
+                &mut self.syllable_bars,
+                Vec::with_capacity(self.bars.count()),
+            );
             println!("LYRICS [");
-            for bar in bars {
+            for bar in syllable_bars {
                 println!("  {bar:?}");
             }
             println!("]");
+        } else {
+            self.syllable_bars.clear();
         }
+        self.next_number = self.bars.first_number;
+        self.bar_duration = 0;
+        self.syllable_exist = false;
     }
 
     fn bar_start(&mut self, number: usize) -> Result<()> {
@@ -771,8 +728,6 @@ impl<'dom> Builder<'dom> {
         );
         bar.sort();
         self.syllable_bars.push(bar);
-        self.bar_index = number - self.bars.first_number;
-        //self.bar_tick = self.bars.bars[self.bar_index].tick;
         self.bar_duration = 0;
         self.next_number += 1;
         Ok(())
