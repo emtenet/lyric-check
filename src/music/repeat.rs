@@ -5,8 +5,10 @@ use anyhow::{
 use std::ops::Range;
 
 #[derive(Debug)]
-struct Bar {
-    duration: usize,
+pub struct Bar {
+    pub index: usize,
+    pub verse: Option<usize>,
+    pub tick: usize,
 }
 
 #[derive(Debug)]
@@ -15,24 +17,24 @@ struct Repeat {
     bars: Range<usize>,
 }
 
-pub struct Bars {
-    first_number: usize,
-    bars: Vec<Bar>,
+pub struct Repeats {
+    first_bar_number: usize,
+    durations: Vec<usize>,
     repeats: Vec<Repeat>,
 }
 
-impl Bars {
-    pub fn first_number(&self) -> usize {
-        self.first_number
+impl Repeats {
+    pub fn first_bar_number(&self) -> usize {
+        self.first_bar_number
     }
 
-    pub fn count(&self) -> usize {
-        self.bars.len()
+    pub fn bar_count(&self) -> usize {
+        self.durations.len()
     }
 
-    pub fn iter(&self) -> BarsIter {
-        BarsIter {
-            bars: &self.bars,
+    pub fn bars(&self) -> Bars {
+        Bars {
+            durations: &self.durations,
             repeats: self.repeats.iter(),
             verse: None,
             indexes: Range { start: 0, end: 0 },
@@ -41,34 +43,27 @@ impl Bars {
     }
 }
 
-pub struct BarsIter<'a> {
-    bars: &'a Vec<Bar>,
+pub struct Bars<'a> {
+    durations: &'a Vec<usize>,
     repeats: std::slice::Iter<'a, Repeat>,
     verse: Option<usize>,
     indexes: Range<usize>,
     tick: usize,
 }
 
-#[derive(Debug)]
-pub struct BarIter {
-    index: usize,
-    verse: Option<usize>,
-    tick: usize,
-}
-
-impl<'a> std::iter::Iterator for BarsIter<'a> {
-    type Item = BarIter;
+impl<'a> std::iter::Iterator for Bars<'a> {
+    type Item = Bar;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(index) = self.indexes.next() {
-                let item = BarIter {
+                let item = Bar {
                     index,
                     verse: self.verse,
                     tick: self.tick,
                 };
-                let bar = &self.bars[index];
-                self.tick += bar.duration;
+                let duration = &self.durations[index];
+                self.tick += duration;
                 return Some(item);
             }
             if let Some(repeat) = self.repeats.next() {
@@ -81,11 +76,11 @@ impl<'a> std::iter::Iterator for BarsIter<'a> {
     }
 }
 
-pub struct BarsBuilder {
+pub struct RepeatsBuilder {
     first_number: usize,
     next_number: usize,
     index: usize,
-    bars: Vec<Bar>,
+    durations: Vec<usize>,
     duration: usize,
     max_duration: usize,
     repeat: RepeatBuilder,
@@ -113,13 +108,13 @@ enum RepeatBuilder {
     },
 }
 
-impl BarsBuilder {
+impl RepeatsBuilder {
     pub fn new(number: usize) -> Self {
-        BarsBuilder {
+        RepeatsBuilder {
             first_number: number,
             next_number: number + 1,
             index: 0,
-            bars: Vec::new(),
+            durations: Vec::new(),
             duration: 0,
             max_duration: 0,
             repeat: RepeatBuilder::Normal { start: 0 },
@@ -131,9 +126,7 @@ impl BarsBuilder {
         if number != self.next_number {
             bail!("Unexpected bar {number}, expecting {}", self.next_number);
         }
-        self.bars.push(Bar {
-            duration: self.max_duration,
-        });
+        self.durations.push(self.max_duration);
         self.next_number += 1;
         self.index += 1;
         self.duration = 0;
@@ -271,10 +264,8 @@ impl BarsBuilder {
         }
     }
 
-    pub fn build(mut self) -> Result<Bars> {
-        self.bars.push(Bar {
-            duration: self.max_duration,
-        });
+    pub fn build(mut self) -> Result<Repeats> {
+        self.durations.push(self.max_duration);
         match self.repeat {
             RepeatBuilder::Normal { start } => {
                 self.repeats.push(Repeat {
@@ -289,9 +280,9 @@ impl BarsBuilder {
             _ =>
                 todo!("BARS END {:?}", self.repeat),
         }
-        Ok(Bars {
-            first_number: self.first_number,
-            bars: self.bars,
+        Ok(Repeats {
+            first_bar_number: self.first_number,
+            durations: self.durations,
             repeats: self.repeats,
         })
     }

@@ -6,15 +6,37 @@ use roxmltree::{
 use std::ops::Range;
 use std::str::FromStr;
 
-mod bar;
+mod repeat;
 mod syllable;
+mod word;
 
-use bar::{
-    Bars,
-    BarsBuilder,
+use repeat::{
+    Repeats,
+    RepeatsBuilder,
+};
+use syllable::{
+    Syllable,
 };
 
-pub fn read<'str>(xml: &'str str) -> Result<()> {
+#[derive(Debug)]
+pub struct Word {
+    pub start: usize,
+    pub end: usize,
+    pub text: String,
+}
+
+#[derive(Debug)]
+pub struct Phrase {
+    pub start: usize,
+    pub end: usize,
+    pub words: Vec<Word>,
+}
+
+pub struct Part {
+    pub phrases: Vec<Phrase>,
+}
+
+pub fn read<'str>(xml: &'str str) -> Result<Part> {
     let doc = Document::parse_with_options(xml, roxmltree::ParsingOptions {
         allow_dtd: true,
         nodes_limit: u32::MAX,
@@ -27,9 +49,9 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
     let Some(part) = has_child_element(root, "part") else {
         bail!("No parts found!");
     };
-    let bars = read_bars(part)?;
+    let repeats = read_bars(part)?;
 
-    let mut builder = Builder::new(bars);
+    let mut builder = Builder::new(repeats);
 
     //let work = child_element(root, "work")?;
     //let title = child_element_text(work, "work-title")?;
@@ -65,11 +87,11 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
         builder.part_end();
     }
 
-    Ok(())
+    builder.build()
 }
 
-fn read_bars(part: Node) -> Result<Bars> {
-    let mut builder: Option<BarsBuilder> = None;
+fn read_bars(part: Node) -> Result<Repeats> {
+    let mut builder: Option<RepeatsBuilder> = None;
 
     for measure in part.children() {
         if !measure.is_element() {
@@ -85,7 +107,7 @@ fn read_bars(part: Node) -> Result<Bars> {
         if let Some(builder) = &mut builder {
             builder.next(number)?;
         } else {
-            builder = Some(BarsBuilder::new(number));
+            builder = Some(RepeatsBuilder::new(number));
         }
         read_bar(builder.as_mut().unwrap(), measure)?;
     }
@@ -96,7 +118,7 @@ fn read_bars(part: Node) -> Result<Bars> {
     }
 }
 
-fn read_bar(builder: &mut BarsBuilder, bar: Node) -> Result<()> {
+fn read_bar(builder: &mut RepeatsBuilder, bar: Node) -> Result<()> {
     for node in bar.children() {
         if !node.is_element() {
             continue;
@@ -130,7 +152,7 @@ fn read_bar(builder: &mut BarsBuilder, bar: Node) -> Result<()> {
     Ok(())
 }
 
-fn read_bar_line(builder: &mut BarsBuilder, barline: Node) -> Result<()> {
+fn read_bar_line(builder: &mut RepeatsBuilder, barline: Node) -> Result<()> {
     if let Some(location) = barline.attribute("location") {
         let left = match location {
             "left" => true,
@@ -316,28 +338,32 @@ fn duration_of(node: Node) -> Result<usize> {
 }
 
 struct Builder<'xml> {
-    bars: Bars,
+    repeats: Repeats,
     next_number: usize,
     bar_tick: usize,
     syllables: syllable::Builder<'xml>,
+    parts: Vec<Part>,
 }
 
 impl<'dom> Builder<'dom> {
-    fn new(bars: Bars) -> Self {
-        let next_number = bars.first_number();
-        let bar_count = bars.count();
+    fn new(repeats: Repeats) -> Self {
+        let next_number = repeats.first_bar_number();
+        let bar_count = repeats.bar_count();
         Builder {
-            bars,
+            repeats,
             next_number,
             bar_tick: 0,
             syllables: syllable::Builder::new(bar_count),
+            parts: Vec::new(),
         }
     }
 
     fn part_end(&mut self) {
-        self.next_number = self.bars.first_number();
+        self.next_number = self.repeats.first_bar_number();
         self.bar_tick = 0;
-        self.syllables.part_end();
+        if let Some(part) = self.syllables.part_end(&self.repeats) {
+            self.parts.push(part);
+        }
     }
 
     fn bar_start(&mut self, number: usize) -> Result<()> {
@@ -372,6 +398,13 @@ impl<'dom> Builder<'dom> {
             kind,
             text,
         });
+    }
+
+    fn build(mut self) -> Result<Part> {
+        if self.parts.len() != 1 {
+            bail!("More than one part");
+        }
+        Ok(self.parts.pop().unwrap())
     }
 }
 
