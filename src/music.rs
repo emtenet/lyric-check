@@ -6,6 +6,14 @@ use roxmltree::{
 use std::ops::Range;
 use std::str::FromStr;
 
+mod bar;
+mod syllable;
+
+use bar::{
+    Bars,
+    BarsBuilder,
+};
+
 pub fn read<'str>(xml: &'str str) -> Result<()> {
     let doc = Document::parse_with_options(xml, roxmltree::ParsingOptions {
         allow_dtd: true,
@@ -20,12 +28,6 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
         bail!("No parts found!");
     };
     let bars = read_bars(part)?;
-
-    println!("BARS [");
-    for bar in bars.iter() {
-        println!("  {bar:?}");
-    }
-    println!("]");
 
     let mut builder = Builder::new(bars);
 
@@ -64,305 +66,6 @@ pub fn read<'str>(xml: &'str str) -> Result<()> {
     }
 
     Ok(())
-}
-
-#[derive(Debug)]
-struct Bar {
-    duration: usize,
-}
-
-#[derive(Debug)]
-struct Repeat {
-    verse: Option<usize>,
-    bars: Range<usize>,
-}
-
-struct Bars {
-    first_number: usize,
-    bars: Vec<Bar>,
-    repeats: Vec<Repeat>,
-}
-
-impl Bars {
-    fn count(&self) -> usize {
-        self.bars.len()
-    }
-
-    fn iter(&self) -> BarsIter {
-        BarsIter {
-            bars: &self.bars,
-            repeats: self.repeats.iter(),
-            verse: None,
-            indexes: Range { start: 0, end: 0 },
-            tick: 0,
-        }
-    }
-}
-
-struct BarsIter<'a> {
-    bars: &'a Vec<Bar>,
-    repeats: std::slice::Iter<'a, Repeat>,
-    verse: Option<usize>,
-    indexes: Range<usize>,
-    tick: usize,
-}
-
-#[derive(Debug)]
-struct BarIter {
-    index: usize,
-    verse: Option<usize>,
-    tick: usize,
-}
-
-impl<'a> std::iter::Iterator for BarsIter<'a> {
-    type Item = BarIter;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(index) = self.indexes.next() {
-                let item = BarIter {
-                    index,
-                    verse: self.verse,
-                    tick: self.tick,
-                };
-                let bar = &self.bars[index];
-                self.tick += bar.duration;
-                return Some(item);
-            }
-            if let Some(repeat) = self.repeats.next() {
-                self.verse = repeat.verse;
-                self.indexes = repeat.bars.clone();
-            } else {
-                return None;
-            }
-        }
-    }
-}
-
-struct BarsBuilder {
-    first_number: usize,
-    next_number: usize,
-    index: usize,
-    bars: Vec<Bar>,
-    duration: usize,
-    max_duration: usize,
-    repeat: RepeatBuilder,
-    repeats: Vec<Repeat>,
-}
-
-#[derive(Debug)]
-enum RepeatBuilder {
-    Normal {
-        start: usize,
-    },
-    Started {
-        start: usize,
-    },
-    Ending {
-        start: usize,
-        ending: usize,
-        verse: Range<usize>,
-        closed: Option<usize>,
-    },
-    Ended {
-        start: usize,
-        verse: Range<usize>,
-        opened: bool,
-    },
-}
-
-impl BarsBuilder {
-    fn new(number: usize) -> Self {
-        BarsBuilder {
-            first_number: number,
-            next_number: number + 1,
-            index: 0,
-            bars: Vec::new(),
-            duration: 0,
-            max_duration: 0,
-            repeat: RepeatBuilder::Normal { start: 0 },
-            repeats: Vec::new(),
-        }
-    }
-
-    fn next(&mut self, number: usize) -> Result<()> {
-        if number != self.next_number {
-            bail!("Unexpected bar {number}, expecting {}", self.next_number);
-        }
-        self.bars.push(Bar {
-            duration: self.max_duration,
-        });
-        self.next_number += 1;
-        self.index += 1;
-        self.duration = 0;
-        self.max_duration = 0;
-        Ok(())
-    }
-
-    fn forward(&mut self, duration: usize) {
-        self.duration += duration;
-        if self.max_duration < self.duration {
-            self.max_duration = self.duration;
-        }
-    }
-
-    fn backward(&mut self, duration: usize) {
-        self.duration -= duration;
-        if self.max_duration < self.duration {
-            self.max_duration = self.duration;
-        }
-    }
-
-    fn repeat_start(&mut self) {
-        match self.repeat {
-            RepeatBuilder::Normal { start } => {
-                self.repeats.push(Repeat {
-                    verse: None,
-                    bars: Range {
-                        start,
-                        end: self.index,
-                    },
-                });
-                self.repeat = RepeatBuilder::Started {
-                    start: self.index,
-                };
-            },
-
-            _ =>
-                todo!("REPEAT START {:?}", self.repeat),
-        }
-    }
-
-    fn repeat_end(&mut self) {
-        match &self.repeat {
-            RepeatBuilder::Started { start } => {
-                // no 1st / 2nd ending bars, so assume repeat twice
-                for verse in 0..2 {
-                    self.repeats.push(Repeat {
-                        verse: Some(verse),
-                        bars: Range {
-                            start: *start,
-                            end: self.index + 1,
-                        }
-                    });
-                }
-                self.repeat = RepeatBuilder::Normal {
-                    start: self.index + 1,
-                };
-            }
-
-            RepeatBuilder::Ending { start, ending, verse, closed } => {
-                assert_eq!(Some(self.index), *closed);
-                for verse in verse.clone() {
-                    self.repeats.push(Repeat {
-                        verse: Some(verse),
-                        bars: Range {
-                            start: *start,
-                            end: self.index + 1,
-                        }
-                    });
-                }
-                if *ending > *start {
-                    self.repeats.push(Repeat {
-                        verse: Some(verse.end),
-                        bars: Range {
-                            start: *start,
-                            end: *ending,
-                        }
-                    });
-                }
-                self.repeat = RepeatBuilder::Ended {
-                    start: self.index + 1,
-                    verse: Range {
-                        start: verse.end,
-                        end: verse.end + 1,
-                    },
-                    opened: false,
-                };
-            }
-
-            _ =>
-                todo!("REPEAT END {:?}", self.repeat),
-        }
-    }
-
-    fn ending_start(&mut self, verse: Range<usize>) {
-        match &mut self.repeat {
-            RepeatBuilder::Started { start } => {
-                self.repeat = RepeatBuilder::Ending {
-                    start: *start,
-                    ending: self.index,
-                    verse,
-                    closed: None,
-                };
-            }
-
-            RepeatBuilder::Ended { verse: expect, opened, .. } => {
-                assert_eq!(*opened, false);
-                assert_eq!(*expect, verse);
-                *opened = true;
-            }
-
-            _ =>
-                todo!("ENDING START {:?}", self.repeat),
-        }
-    }
-
-    fn ending_end(&mut self, verse: Range<usize>) {
-        match &mut self.repeat {
-            RepeatBuilder::Ending { closed, verse: opened, .. } => {
-                assert_eq!(None, *closed);
-                assert_eq!(*opened, verse);
-                *closed = Some(self.index);
-            }
-
-            RepeatBuilder::Ended { start, verse: expect, opened } => {
-                assert_eq!(*opened, true);
-                assert_eq!(*expect, verse);
-                self.repeat = RepeatBuilder::Normal {
-                    start: *start,
-                };
-            }
-
-            _ =>
-                todo!("ENDING STOP {:?}", self.repeat),
-        }
-    }
-
-    fn build(mut self) -> Result<Bars> {
-        self.bars.push(Bar {
-            duration: self.max_duration,
-        });
-        match self.repeat {
-            RepeatBuilder::Normal { start } => {
-                self.repeats.push(Repeat {
-                    verse: None,
-                    bars: Range {
-                        start,
-                        end: self.index + 1,
-                    },
-                });
-            }
-
-            _ =>
-                todo!("BARS END {:?}", self.repeat),
-        }
-        println!("BARS: [");
-        for bar in &self.bars {
-            println!("  {bar:?}");
-        }
-        println!("]");
-        println!("REPEATS: [");
-        for repeat in &self.repeats {
-            println!("  {repeat:?}");
-        }
-        println!("]");
-        Ok(Bars {
-            first_number: self.first_number,
-            bars: self.bars,
-            repeats: self.repeats,
-        })
-    }
 }
 
 fn read_bars(part: Node) -> Result<Bars> {
@@ -552,22 +255,9 @@ fn read_part_note<'xml, 'str: 'xml>(
             bail!("<lyric number=`{verse}`>");
         };
         let text = child_element_text(lyric, "text")?;
-        match child_element_text(lyric, "syllabic")? {
-            "single" =>
-                builder.lyric(voice, verse, Syllabic::Single, text, duration),
-
-            "begin" =>
-                builder.lyric(voice, verse, Syllabic::Begin, text, duration),
-
-            "middle" =>
-                builder.lyric(voice, verse, Syllabic::Middle, text, duration),
-
-            "end" =>
-                builder.lyric(voice, verse, Syllabic::End, text, duration),
-
-            syllabic =>
-                bail!("<lyric><syllabic> `{syllabic}`"),
-        }
+        let kind = child_element_text(lyric, "syllabic")?;
+        let kind = syllable::Kind::from_str(kind)?;
+        builder.lyric(voice, verse, kind, text, duration);
     }
     builder.forward(duration);
     Ok(())
@@ -581,7 +271,6 @@ fn has_child_element<'xml, 'str: 'xml>(
         if child.has_tag_name(name) {
             return Some(child);
         }
-
     }
 
     None
@@ -599,7 +288,6 @@ fn child_element_text<'xml, 'str: 'xml>(
                 return Ok("");
             }
         }
-
     }
 
     let tag = node.tag_name().name();
@@ -627,135 +315,61 @@ fn duration_of(node: Node) -> Result<usize> {
     Ok(duration)
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Ord, PartialOrd)]
-enum Syllabic {
-    Single,
-    Begin,
-    Middle,
-    End,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Ord, PartialOrd)]
-struct Syllable<'xml> {
-    start: usize,
-    end: usize,
-    is: Syllabic,
-    text: &'xml str,
-}
-
-#[derive(Debug)]
-struct SyllableBar<'xml> {
-    verse: [Vec<Syllable<'xml>>; 3],
-}
-
-impl<'xml> SyllableBar<'xml> {
-    fn new() -> Self {
-        SyllableBar {
-            verse: [
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-            ],
-        }
-    }
-
-    fn sort(&mut self) {
-        for verse in &mut self.verse {
-            verse.sort();
-        }
-    }
-}
-
 struct Builder<'xml> {
     bars: Bars,
     next_number: usize,
-    bar_duration: usize,
-    syllable_exist: bool,
-    syllable_bars: Vec<SyllableBar<'xml>>,
-    syllable_bar: SyllableBar<'xml>,
+    bar_tick: usize,
+    syllables: syllable::Builder<'xml>,
 }
 
 impl<'dom> Builder<'dom> {
     fn new(bars: Bars) -> Self {
-        let next_number = bars.first_number;
+        let next_number = bars.first_number();
         let bar_count = bars.count();
         Builder {
             bars,
             next_number,
-            bar_duration: 0,
-            syllable_exist: false,
-            syllable_bars: Vec::with_capacity(bar_count),
-            syllable_bar: SyllableBar::new(),
+            bar_tick: 0,
+            syllables: syllable::Builder::new(bar_count),
         }
     }
 
     fn part_end(&mut self) {
-        let mut bar = std::mem::replace(
-            &mut self.syllable_bar,
-            SyllableBar::new(),
-        );
-        bar.sort();
-        self.syllable_bars.push(bar);
-        if self.syllable_exist {
-            let syllable_bars = std::mem::replace(
-                &mut self.syllable_bars,
-                Vec::with_capacity(self.bars.count()),
-            );
-            println!("LYRICS [");
-            for bar in syllable_bars {
-                println!("  {bar:?}");
-            }
-            println!("]");
-        } else {
-            self.syllable_bars.clear();
-        }
-        self.next_number = self.bars.first_number;
-        self.bar_duration = 0;
-        self.syllable_exist = false;
+        self.next_number = self.bars.first_number();
+        self.bar_tick = 0;
+        self.syllables.part_end();
     }
 
     fn bar_start(&mut self, number: usize) -> Result<()> {
         if number != self.next_number {
             bail!("Unexpected bar {number}, expecting {}", self.next_number);
         }
-        let mut bar = std::mem::replace(
-            &mut self.syllable_bar,
-            SyllableBar::new(),
-        );
-        bar.sort();
-        self.syllable_bars.push(bar);
-        self.bar_duration = 0;
         self.next_number += 1;
+        self.bar_tick = 0;
+        self.syllables.bar_start();
         Ok(())
     }
 
     fn backward(&mut self, duration: usize) {
-        self.bar_duration -= duration;
+        self.bar_tick -= duration;
     }
 
     fn forward(&mut self, duration: usize) {
-        self.bar_duration += duration;
+        self.bar_tick += duration;
     }
 
     fn lyric(
         &mut self,
-        _voice: usize,
+        voice: usize,
         verse: usize,
-        is: Syllabic,
+        kind: syllable::Kind,
         text: &'dom str,
         duration: usize,
     ) {
-        let start = self.bar_duration;
-        let end = self.bar_duration + duration;
-        self.syllable_exist = true;
-        self.syllable_bar.verse[verse].push(Syllable {
-            start,
-            end,
-            is,
+        self.syllables.lyric(voice, verse, syllable::Syllable {
+            start: self.bar_tick,
+            end: self.bar_tick + duration,
+            kind,
             text,
         });
     }
