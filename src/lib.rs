@@ -29,3 +29,9 @@ pub struct Replace {
     pub script: String,
 }
 
+#[derive(askama::Template)]
+#[template(path = "diff.html")]
+pub struct DiffPage {
+    pub sections: Vec<Section>,
+}
+
