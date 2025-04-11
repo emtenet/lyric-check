@@ -7,4 +7,18 @@ edition = "2021"
 anyhow = "1.0.97"
 askama = "0.13.0"
 diff = "0.1.13"
+rocket = "0.5.1"
 roxmltree = "0.20.0"
+webbrowser = "1.0.4"
+
+[dependencies.rust-embed]
+version = "8.7"
+features = ["debug-embed"]
+
+[dependencies.tokio]
+version = "1.44.2"
+features = ["fs", "sync"]
+
+[build-dependencies]
+winres = "0.1.12"
+

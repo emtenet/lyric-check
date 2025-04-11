@@ -30,6 +30,12 @@ pub struct Replace {
 }
 
 #[derive(askama::Template)]
+#[template(path = "home.html")]
+pub struct HomePage {
+    pub root: String,
+}
+
+#[derive(askama::Template)]
 #[template(path = "diff.html")]
 pub struct DiffPage {
     pub sections: Vec<Section>,
