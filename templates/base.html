@@ -8,6 +8,11 @@
     <link href="favicon.ico" rel="shortcut icon"/>
   </head>
   <body>
+{% match error %}
+  {% when Some(message) %}
+    <pre class="error"><code>{{ message }}</code></pre>
+  {% else %}
+{% endmatch %}
     <h1>Lyric Check</h1>
     {% block content %}{% endblock %}
   </body>

@@ -3,27 +3,25 @@
 {% block content %}
 {%- for section in sections %}
     <h2>{{ section.heading }}</h2>
-    <dl>
 {%- for line in section.lines %}
-      <dt>{{ line.number }}</dt>
-      <dd>
+    <div class="line">
+      <div class="number">{{ line.number }}</div>
 {%- for diff in line.diffs -%}
 {%- match diff -%}
   {%- when Diff::Same(text) %}
-        <div class="same">{{ text }}</div>
+      <div class="same">{{ text }}</div>
   {%- when Diff::Music(music) %}
-        <div class="music">{{ music }}</div>
+      <div class="music">{{ music }}</div>
   {%- when Diff::Script(script) %}
-        <div class="script">{{ script }}</div>
+      <div class="script">{{ script }}</div>
   {%- when Diff::Replace(replace) %}
-        <div class="replace">
-          <div class="script">{{ replace.script }}</div>
-          <div class="music">{{ replace.music }}</div>
-        </div>
+      <div class="replace">
+        <div class="script">{{ replace.script }}</div>
+        <div class="music">{{ replace.music }}</div>
+      </div>
 {%- endmatch %}
 {%- endfor %}
-      </dd>
+    </div>
 {%- endfor %}
-    </dl>
 {%- endfor %}
 {%- endblock %}

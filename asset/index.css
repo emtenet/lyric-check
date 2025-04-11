@@ -1,0 +1,99 @@
+@import url("https://fonts.googleapis.com/css?family=Montserrat:400,700");
+
+body {
+    --base03: #002b36;
+    --base02: #073642;
+    --base01: #586e75;
+    --base00: #657b83;
+    --base0: #839496;
+    --base1: #93a1a1;
+    --base2: #eee8d5;
+    --base3: #fdf6e3;
+    --yellow: #b58900;
+    --orange: #cb4b16;
+    --red: #dc322f;
+    --magenta: #d33682;
+    --violet: #6c71c4;
+    --blue: #268bd2;
+    --cyan: #2aa198;
+    --green: #859900;
+    --background: var(--base3);
+    --highlight: var(--base2);
+    --text: var(--base00);
+    --strong: var(--base01);
+    --dark-background: var(--base03);
+    --dark-highlight: var(--base02);
+    --dark-text: var(--base0);
+    --dark-strong: var(--base1);
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--background);
+    color: var(--text);   
+}
+
+pre.error {
+    padding: 1rem;
+    background-color: var(--red);
+    color: var(--background);
+}
+
+h1 {
+    color: var(--strong);
+}
+
+a:link {
+    color: var(--text);   
+}
+
+a:visited {
+    color: var(--text);   
+}
+
+a li {
+    padding: 0.2rem;
+}
+
+a li.selected {
+    background-color: var(--violet);
+    color: var(--background);
+}
+
+a:hover li {
+    background-color: var(--blue);
+    color: var(--background);
+}
+
+div.line {
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+}
+
+div.number {
+    font-weight: bold;
+    color: var(--violet);
+    width: 3em;
+}
+
+div.line div {
+    padding: 0.2rem;
+}
+
+div.replace {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+div.script {
+    font-weight: bold;
+    color: var(--violet);
+}
+
+div.music {
+    font-weight: bold;
+    color: var(--red);
+}
+

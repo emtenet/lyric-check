@@ -1,3 +1,4 @@
+use askama::Template;
 
 pub mod diff;
 pub mod music;
@@ -29,15 +30,47 @@ pub struct Replace {
     pub script: String,
 }
 
+pub struct Link {
+    pub selected: bool,
+    pub href: String,
+    pub title: String,
+}
+
 #[derive(askama::Template)]
 #[template(path = "home.html")]
 pub struct HomePage {
-    pub root: String,
+    pub error: Option<String>,
+    pub folders: Vec<Link>,
+    pub scripts: Vec<Link>,
+    pub musics: Vec<Link>,
+}
+
+#[derive(askama::Template)]
+#[template(path = "folder.html")]
+pub struct FolderPage {
+    pub error: Option<String>,
+    pub scripts: Vec<Link>,
+    pub musics: Vec<Link>,
 }
 
 #[derive(askama::Template)]
 #[template(path = "diff.html")]
 pub struct DiffPage {
+    pub error: Option<String>,
     pub sections: Vec<Section>,
 }
 
+#[derive(askama::Template)]
+#[template(path = "error.html")]
+pub struct ErrorPage {
+    pub error: Option<String>,
+}
+
+impl ErrorPage {
+    pub fn anyhow(error: anyhow::Error) -> String {
+        let page = ErrorPage {
+            error: Some(format!("{error:?}")),
+        };
+        page.render().unwrap()
+    }
+}

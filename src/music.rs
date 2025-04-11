@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use roxmltree::{
     Document,
     Node,
@@ -41,7 +41,7 @@ pub fn read<'str>(xml: &'str str) -> Result<Part> {
     let doc = Document::parse_with_options(xml, roxmltree::ParsingOptions {
         allow_dtd: true,
         nodes_limit: u32::MAX,
-    })?;
+    }).with_context(|| format!("Reading MUSICXML {}", &xml[..32]))?;
     let root = doc.root_element();
     if !root.has_tag_name("score-partwise") {
         bail!("Expecting root <score-partwise> not {}", root.tag_name().name());

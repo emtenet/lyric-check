@@ -14,7 +14,8 @@ fn main() -> Result<()> {
             let xml = std::fs::read_to_string(music)?;
             let txt = std::fs::read_to_string(script)?;
             let page = DiffPage {
-                sections: lyric_check::diff::read(&xml, &txt)?,
+                error: None,
+                sections: lyric_check::diff::read(&txt, &xml)?,
             };
             let html = page.render()?;
             println!("{html}");
@@ -23,7 +24,7 @@ fn main() -> Result<()> {
         ["diff", music, script] => {
             let xml = std::fs::read_to_string(music)?;
             let txt = std::fs::read_to_string(script)?;
-            let sections = lyric_check::diff::read(&xml, &txt)?;
+            let sections = lyric_check::diff::read(&txt, &xml)?;
             for section in sections {
                 println!("{}", section.heading);
                 for line in section.lines {

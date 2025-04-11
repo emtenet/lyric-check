@@ -1,11 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <ul>
-{% for folder in folders %}
-      <a href="{{ folder.href }}"><li>{{ folder.title }}</li></a>
-{% endfor %}
-    </ul>
     <h2>Script</h2>
     <ul>
 {% for script in scripts %}

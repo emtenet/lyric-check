@@ -11,7 +11,7 @@ use super::{
 };
 use script::Word as Script;
 
-pub fn read(xml: &str, txt: &str) -> Result<Vec<Section>> {
+pub fn read(txt: &str, xml: &str) -> Result<Vec<Section>> {
     let music = music::read(xml)?;
     let script = script::read(txt)?;
 
