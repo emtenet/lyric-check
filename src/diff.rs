@@ -284,14 +284,25 @@ fn diff_word(diffs: &mut Vec<Diff>, script: &str, music: &str) {
                         same.push(c),
 
                     State::Diff => {
-                        let replace = std::mem::replace(
-                            &mut replace,
-                            Replace {
-                                script: String::new(),
-                                music: String::new(),
-                            },
-                        );
-                        diffs.push(Diff::Replace(replace));
+                        if replace.music.is_empty() {
+                            diffs.push(Diff::Script(std::mem::replace(
+                                &mut replace.script,
+                                String::new(),
+                            )));
+                        } else if replace.script.is_empty() {
+                            diffs.push(Diff::Music(std::mem::replace(
+                                &mut replace.music,
+                                String::new(),
+                            )));
+                        } else {
+                            diffs.push(Diff::Replace(std::mem::replace(
+                                &mut replace,
+                                Replace {
+                                    script: String::new(),
+                                    music: String::new(),
+                                },
+                            )));
+                        }
                         state = State::Same;
                         same.push(c);
                     }
