@@ -78,7 +78,20 @@ impl Builder {
         }
     }
 
-    fn word(&mut self, word: Word) {
+    fn word(&mut self, mut word: Word) {
+        while let Some((left, right)) = word.text.split_once(' ') {
+            self.word_single(Word {
+                start: word.start,
+                end: word.start + 1,
+                text: String::from(left),
+            });
+            word.start += 1;
+            word.text = String::from(right);
+        }
+        self.word_single(word);
+    }
+
+    fn word_single(&mut self, word: Word) {
         let is_end = word.text.ends_with('.') || word.text.ends_with('!');
         if !self.phrase.words.is_empty() {
             // start new phrase at a capital letter
