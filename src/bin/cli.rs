@@ -54,16 +54,6 @@ fn main() -> Result<()> {
             for phrase in &part.phrases {
                 for word in &phrase.words {
                     print!("{} ", word.text);
-                    if !word.phrases.is_empty() {
-                        for phrase in &word.phrases {
-                            println!("<<");
-                            print!(" -->");
-                            for word in &phrase.words {
-                                print!("{} ", word.text);
-                            }
-                            print!(">>");
-                        }
-                    }
                 }
                 println!("");
             }

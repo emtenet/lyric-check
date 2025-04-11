@@ -22,11 +22,13 @@ pub fn read<'str>(txt: &'str str) -> Result<Vec<Word>> {
 
     for line in txt.lines() {
         let mut state = State::Start;
-        let line = line.replace('\u{2019}', "\'");
+        let line = line
+            .replace('\u{2019}', "\'")
+            .replace('\u{2026}', "...");
         for (i, c) in line.char_indices() {
-            //if !c.is_ascii() {
-            //    println!("NOT-ASCII `{c}` {:x}", u32::from(c)),
-            //}
+            if !c.is_ascii() {
+               println!("NOT-ASCII `{c}` {:x}", u32::from(c));
+            }
             match state {
                 State::Start if c.is_ascii_digit() =>
                     state = State::Digit,

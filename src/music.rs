@@ -18,15 +18,20 @@ use syllable::{
     Syllable,
 };
 
+const CROTCHET: usize = 256;
+const MINIM: usize = CROTCHET + CROTCHET;
+const SEMIBREVE: usize = MINIM + MINIM;
+
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub struct Word {
     pub start: usize,
     pub end: usize,
     pub text: String,
-    pub phrases: Vec<Phrase>,
 }
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub struct Phrase {
     pub start: usize,
     pub end: usize,
@@ -404,9 +409,10 @@ impl<'dom> Builder<'dom> {
     fn build(self) -> Result<Part> {
         let mut parts = self.parts.into_iter();
         let mut part = parts.next().unwrap();
+        let mut from = 0;
         for other in parts {
             for phrase in other.phrases {
-                part.merge(phrase);
+                from = part.merge(phrase, from);
             }
         }
         Ok(part)
@@ -414,29 +420,46 @@ impl<'dom> Builder<'dom> {
 }
 
 impl Part {
-    fn merge(&mut self, other: Phrase) {
-        for (index, phrase) in self.phrases.iter_mut().enumerate() {
-            if other.end <= phrase.start {
+    fn merge(&mut self, other: Phrase, from: usize) -> usize {
+        for (index, phrase) in self.phrases.iter().enumerate() {
+            if index < from {
+                continue;
+            }
+            if phrase == &other {
+                return index;
+            }
+            // end within a crotchet of the next phrase?
+            //  OR
+            // start 4 crotchets before next phrase?
+            if other.end <= phrase.start + CROTCHET || other.start + SEMIBREVE <= phrase.start {
+                debug_phrase("INSERT 1", &other);
+                debug_phrase("  BEFORE", &phrase);
+                println!("---");
                 self.phrases.insert(index, other);
-                return;
+                return index + 1;
             }
             if other.start < phrase.end {
-                phrase.merge(other);
-                return;
+                if let Some(after) = self.phrases.get(index + 1) {
+                    if other.end <= after.start {
+                        debug_phrase("INSERT 2", &other);
+                        debug_phrase("  BEFORE", &after);
+                        println!("---");
+                        self.phrases.insert(index + 1, other);
+                        return index + 2;
+                    }
+                }
             }
         }
+
+        self.phrases.push(other);
+        return self.phrases.len();
     }
 }
 
-impl Phrase {
-    fn merge(&mut self, other: Phrase) {
-        for word in self.words.iter_mut() {
-            if other.start < word.end {
-                word.phrases.push(other);
-                return;
-            }
-        }
-        unreachable!()
+fn debug_phrase(debug: &str, phrase: &Phrase) {
+    print!("{debug} {}..{} [{}", phrase.start, phrase.end, phrase.words[0].text);
+    for word in &phrase.words[1..] {
+        print!(" {}", word.text);
     }
+    println!("]");
 }
-

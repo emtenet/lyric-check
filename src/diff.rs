@@ -171,7 +171,6 @@ impl<'stack> Builder<'stack> {
     }
 
     fn same(&mut self, script: &'stack str, music: &'stack music::Word) {
-        // TODO: music.phrases
         self.flush_diff();
         diff_word(&mut self.line.diffs, script, &music.text);
     }

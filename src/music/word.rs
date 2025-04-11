@@ -5,6 +5,7 @@ use super::{
     syllable::Kind,
     Syllable,
     Word,
+    MINIM,
 };
 
 pub struct Builder {
@@ -36,7 +37,6 @@ impl Builder {
                     start: syllable.start,
                     end: syllable.end,
                     text: String::from(syllable.text),
-                    phrases: Vec::new(),
                 });
             }
 
@@ -48,7 +48,6 @@ impl Builder {
                     start: syllable.start,
                     end: syllable.end,
                     text: String::from(syllable.text),
-                    phrases: Vec::new(),
                 });
             }
 
@@ -61,7 +60,6 @@ impl Builder {
                         start: syllable.start,
                         end: syllable.end,
                         text: String::from(syllable.text),
-                        phrases: Vec::new(),
                     });
                 },
 
@@ -75,7 +73,6 @@ impl Builder {
                         start: syllable.start,
                         end: syllable.end,
                         text: String::from(syllable.text),
-                        phrases: Vec::new(),
                     });
                 },
         }
@@ -83,14 +80,20 @@ impl Builder {
 
     fn word(&mut self, word: Word) {
         let is_end = word.text.ends_with('.') || word.text.ends_with('!');
-        if !self.phrase.words.is_empty() && word.start >= self.phrase.end + 512
-        {
-            // minum
-            self.phrases.push(std::mem::replace(&mut self.phrase, Phrase {
-                start: 0,
-                end: 0,
-                words: Vec::new(),
-            }));
+        if !self.phrase.words.is_empty() {
+            // start new phrase at a capital letter
+            // and there is a rest between the previous word
+            let rest_then_capital = is_capital(&word.text) && word.start > self.phrase.end;
+            // OR
+            // start new phrase after a big rest (minum)
+            let big_rest = word.start >= self.phrase.end + MINIM;
+            if rest_then_capital || big_rest {
+                self.phrases.push(std::mem::replace(&mut self.phrase, Phrase {
+                    start: 0,
+                    end: 0,
+                    words: Vec::new(),
+                }));
+            }
         }
         if self.phrase.words.is_empty() {
             if is_end {
@@ -130,3 +133,19 @@ impl Builder {
     }
 }
 
+fn is_capital(text: &str) -> bool {
+    let mut chars = text.chars();
+    if let Some(c) = chars.next() {
+        if c.is_ascii_uppercase() {
+            return true;
+        }
+        if c == '\'' {
+            if let Some(c) = chars.next() {
+                if c.is_ascii_uppercase() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
