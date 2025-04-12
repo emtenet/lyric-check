@@ -12,6 +12,7 @@ pub struct Builder {
     phrases: Vec<Phrase>,
     phrase: Phrase,
     word: Option<Word>,
+    in_group: bool,
 }
 
 impl Builder {
@@ -24,6 +25,7 @@ impl Builder {
                 words: Vec::new(),
             },
             word: None,
+            in_group: false,
         }
     }
 
@@ -92,15 +94,26 @@ impl Builder {
     }
 
     fn word_single(&mut self, word: Word) {
-        let is_end = word.text.ends_with('.') || word.text.ends_with('!');
+        let group_start = word.text.starts_with('[');
+        let group_end = word.text.ends_with(']');
+        let is_end = if self.in_group {
+            group_end
+        } else {
+            word.text.ends_with('.') || word.text.ends_with('!')
+        };
         if !self.phrase.words.is_empty() {
-            // start new phrase at a capital letter
-            // and there is a rest between the previous word
-            let rest_then_capital = is_capital(&word.text) && word.start > self.phrase.end;
-            // OR
-            // start new phrase after a big rest (minum)
-            let big_rest = word.start >= self.phrase.end + MINIM;
-            if rest_then_capital || big_rest {
+            let new_phrase = if self.in_group {
+                false
+            } else {
+                // start new phrase at a capital letter
+                // and there is a rest between the previous word
+                let rest_then_capital = is_capital(&word.text) && word.start > self.phrase.end;
+                // OR
+                // start new phrase after a big rest (minum)
+                let big_rest = word.start >= self.phrase.end + MINIM;
+                rest_then_capital || big_rest
+            };
+            if group_start || new_phrase {
                 self.phrases.push(std::mem::replace(&mut self.phrase, Phrase {
                     start: 0,
                     end: 0,
@@ -130,6 +143,11 @@ impl Builder {
                     words: Vec::new(),
                 }));
             }
+        }
+        if group_start {
+            self.in_group = true;
+        } else if group_end {
+            self.in_group = false;
         }
     }
 

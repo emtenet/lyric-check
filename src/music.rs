@@ -428,27 +428,34 @@ impl Part {
             if phrase == &other {
                 return index;
             }
-            // end within a crotchet of the next phrase?
-            //  OR
-            // start 4 crotchets before next phrase?
-            if other.end <= phrase.start + CROTCHET || other.start + SEMIBREVE <= phrase.start {
-                debug_phrase("INSERT 1", &other);
-                debug_phrase("  BEFORE", &phrase);
+            if other.start < phrase.start && other.end < phrase.end {
+                debug_phrase("INSERT", &other);
+                debug_phrase("BEFORE", &phrase);
                 println!("---");
                 self.phrases.insert(index, other);
                 return index + 1;
             }
-            if other.start < phrase.end {
-                if let Some(after) = self.phrases.get(index + 1) {
-                    if other.end <= after.start {
-                        debug_phrase("INSERT 2", &other);
-                        debug_phrase("  BEFORE", &after);
-                        println!("---");
-                        self.phrases.insert(index + 1, other);
-                        return index + 2;
-                    }
-                }
-            }
+            // end within a crotchet of the next phrase?
+            //  OR
+            // start 4 crotchets before next phrase?
+            // if other.end <= phrase.start + CROTCHET || other.start + SEMIBREVE <= phrase.start {
+            //     debug_phrase("INSERT 1", &other);
+            //     debug_phrase("  BEFORE", &phrase);
+            //     println!("---");
+            //     self.phrases.insert(index, other);
+            //     return index + 1;
+            // }
+            // if other.start < phrase.end {
+            //     if let Some(after) = self.phrases.get(index + 1) {
+            //         if other.end <= after.start {
+            //             debug_phrase("INSERT 2", &other);
+            //             debug_phrase("  BEFORE", &after);
+            //             println!("---");
+            //             self.phrases.insert(index + 1, other);
+            //             return index + 2;
+            //         }
+            //     }
+            // }
         }
 
         self.phrases.push(other);
