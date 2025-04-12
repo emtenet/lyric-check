@@ -429,8 +429,8 @@ impl Part {
                 return index;
             }
             if other.start < phrase.start && other.end < phrase.end {
-                debug_phrase("INSERT", &other);
-                debug_phrase("BEFORE", &phrase);
+                // debug_phrase("INSERT", &other);
+                // debug_phrase("BEFORE", &phrase);
                 println!("---");
                 self.phrases.insert(index, other);
                 return index + 1;
@@ -463,10 +463,10 @@ impl Part {
     }
 }
 
-fn debug_phrase(debug: &str, phrase: &Phrase) {
-    print!("{debug} {}..{} [{}", phrase.start, phrase.end, phrase.words[0].text);
-    for word in &phrase.words[1..] {
-        print!(" {}", word.text);
-    }
-    println!("]");
-}
+// fn debug_phrase(debug: &str, phrase: &Phrase) {
+//     print!("{debug} {}..{} [{}", phrase.start, phrase.end, phrase.words[0].text);
+//     for word in &phrase.words[1..] {
+//         print!(" {}", word.text);
+//     }
+//     println!("]");
+// }
