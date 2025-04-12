@@ -15,6 +15,7 @@ fn main() -> Result<()> {
             let txt = std::fs::read_to_string(script)?;
             let page = DiffPage {
                 error: None,
+                folder: String::new(),
                 sections: lyric_check::diff::read(&txt, &xml)?,
             };
             let html = page.render()?;

@@ -914,6 +914,7 @@ dependencies = [
  "tokio",
  "webbrowser",
  "winres",
+ "yansi",
 ]
 
 [[package]]

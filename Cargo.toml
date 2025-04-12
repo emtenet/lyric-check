@@ -10,6 +10,7 @@ diff = "0.1.13"
 rocket = "0.5.1"
 roxmltree = "0.20.0"
 webbrowser = "1.0.4"
+yansi = "1.0"
 
 [dependencies.rust-embed]
 version = "8.7"

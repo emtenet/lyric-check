@@ -134,6 +134,8 @@ fn favicon32() -> Option<Asset> {
 
 #[launch]
 async fn rocket() -> _ {
+    yansi::disable();
+    
     let mut root = std::env::current_dir().unwrap();
     if let Some(arg) = std::env::args().skip(1).next() {
         let arg = Path::new(&arg);
@@ -151,6 +153,9 @@ async fn rocket() -> _ {
 
     let mut config = Config::release_default();
     config.log_level = LogLevel::Normal;
+    #[cfg(not(debug_assertions))] {
+        config.cli_colors = false;
+    }
     // config.address = "localhost";
     config.port = 7000;
 
