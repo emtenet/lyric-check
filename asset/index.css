@@ -73,7 +73,7 @@ div.line {
 
 div.number {
     font-weight: bold;
-    color: var(--violet);
+    color: var(--blue);
     width: 3em;
 }
 
@@ -88,6 +88,11 @@ div.replace {
 }
 
 div.script {
+    font-weight: bold;
+    color: var(--blue);
+}
+
+div.case {
     font-weight: bold;
     color: var(--violet);
 }

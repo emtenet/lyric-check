@@ -21,6 +21,7 @@ pub enum Diff {
     Same(String),
     Music(String),
     Script(String),
+    Case(String),
     Replace(Replace),
 }
 
@@ -28,6 +29,26 @@ pub enum Diff {
 pub struct Replace {
     pub music: String,
     pub script: String,
+}
+
+impl Replace {
+    fn to_diff(self) -> Diff {
+        if single_letter(&self.music) == single_letter(&self.script) {
+            Diff::Case(self.script)
+        } else {
+            Diff::Replace(self)
+        }
+    }
+}
+
+fn single_letter(s: &str) -> Option<char> {
+    let mut chars = s.chars();
+    if let Some(c) = chars.next() {
+        if chars.next().is_none() {
+            return Some(c.to_ascii_lowercase());
+        }
+    }
+    None
 }
 
 pub struct Link {

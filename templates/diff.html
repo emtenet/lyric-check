@@ -14,6 +14,8 @@
       <div class="music">{{ music }}</div>
   {%- when Diff::Script(script) %}
       <div class="script">{{ script }}</div>
+  {%- when Diff::Case(script) %}
+      <div class="case">{{ script }}</div>
   {%- when Diff::Replace(replace) %}
       <div class="replace">
         <div class="script">{{ replace.script }}</div>

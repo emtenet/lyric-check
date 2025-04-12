@@ -20,7 +20,6 @@ use syllable::{
 
 const CROTCHET: usize = 256;
 const MINIM: usize = CROTCHET + CROTCHET;
-const SEMIBREVE: usize = MINIM + MINIM;
 
 #[derive(Debug)]
 #[derive(PartialEq)]

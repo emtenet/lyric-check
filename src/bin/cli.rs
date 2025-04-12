@@ -40,6 +40,9 @@ fn main() -> Result<()> {
                             Diff::Script(text) =>
                                 println!("    {text} <=="),
 
+                            Diff::Case(text) =>
+                                println!("    << {text} >>"),
+
                             Diff::Replace(replace) =>
                                 println!("    {} <=> {}", replace.script, replace.music),
                         }

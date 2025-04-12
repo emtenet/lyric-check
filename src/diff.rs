@@ -295,13 +295,13 @@ fn diff_word(diffs: &mut Vec<Diff>, script: &str, music: &str) {
                                 String::new(),
                             )));
                         } else {
-                            diffs.push(Diff::Replace(std::mem::replace(
+                            diffs.push(std::mem::replace(
                                 &mut replace,
                                 Replace {
                                     script: String::new(),
                                     music: String::new(),
                                 },
-                            )));
+                            ).to_diff());
                         }
                         state = State::Same;
                         same.push(c);
@@ -364,7 +364,7 @@ fn diff_word(diffs: &mut Vec<Diff>, script: &str, music: &str) {
             diffs.push(Diff::Music(replace.music)),
 
         State::Diff =>
-            diffs.push(Diff::Replace(replace)),
+            diffs.push(replace.to_diff()),
     }
 }
 
