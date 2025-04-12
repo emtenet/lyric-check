@@ -280,6 +280,11 @@ async fn page_folder(
     mut selected_music: Option<String>,
 ) -> anyhow::Result<String> {
     let dir = Folder::read(root, folder).await?;
+    if let ([script], [music]) = (&dir.scripts[..], &dir.musics[..]) {
+        if let Ok(html) = page_folder_diff(root, folder, script, music).await {
+            return Ok(html);
+        }
+    }
     if let [script] = &dir.scripts[..] {
         selected_script = Some(script.clone());
     }
@@ -288,6 +293,7 @@ async fn page_folder(
     }
     let page = FolderPage {
         error: None,
+        folder: String::from(folder),
         scripts: dir.scripts.into_iter().map(|script|
             Link {
                 selected: if let Some(ref selected) = selected_script {
@@ -324,11 +330,11 @@ async fn page_folder(
 
 async fn page_folder_diff(
     root: &Path,
-    folder: &str,
+    folder_str: &str,
     script: &str,
     music: &str,
 ) -> anyhow::Result<String> {
-    let folder = root.join(folder);
+    let folder = root.join(folder_str);
 
     let script = format!("{script}.txt");
     let script = folder.join(script);
@@ -343,6 +349,7 @@ async fn page_folder_diff(
     let sections = lyric_check::diff::read(&script, &music)?;
     let page = DiffPage {
         error: None,
+        folder: String::from(folder_str),
         sections,
     };
     Ok(page.render().unwrap())

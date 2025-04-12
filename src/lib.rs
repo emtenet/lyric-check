@@ -70,6 +70,7 @@ pub struct HomePage {
 #[template(path = "folder.html")]
 pub struct FolderPage {
     pub error: Option<String>,
+    pub folder: String,
     pub scripts: Vec<Link>,
     pub musics: Vec<Link>,
 }
@@ -78,6 +79,7 @@ pub struct FolderPage {
 #[template(path = "diff.html")]
 pub struct DiffPage {
     pub error: Option<String>,
+    pub folder: String,
     pub sections: Vec<Section>,
 }
 
