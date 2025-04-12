@@ -40,6 +40,7 @@ impl std::str::FromStr for Kind {
 #[derive(Ord, PartialOrd)]
 pub struct Syllable<'xml> {
     pub start: usize,
+    pub voice: usize, // for sorting
     pub end: usize,
     pub kind: Kind,
     pub text: &'xml str,
@@ -168,6 +169,7 @@ impl<'xml> std::iter::Iterator for Iter<'xml> {
             self.end = syllable.end;
             Some(Syllable {
                 start: syllable.start + self.tick,
+                voice: syllable.voice,
                 end: syllable.end + self.tick,
                 kind: syllable.kind,
                 text: syllable.text,
@@ -178,6 +180,7 @@ impl<'xml> std::iter::Iterator for Iter<'xml> {
                     self.syllables = common;
                     return Some(Syllable {
                         start: syllable.start + self.tick,
+                        voice: syllable.voice,
                         end: syllable.end + self.tick,
                         kind: syllable.kind,
                         text: syllable.text,

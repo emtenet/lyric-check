@@ -399,6 +399,7 @@ impl<'dom> Builder<'dom> {
     ) {
         self.syllables.lyric(voice, verse, syllable::Syllable {
             start: self.bar_tick,
+            voice,
             end: self.bar_tick + duration,
             kind,
             text,
