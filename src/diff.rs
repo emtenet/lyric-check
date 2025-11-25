@@ -12,7 +12,9 @@ use super::{
 use script::Word as Script;
 
 pub fn read(txt: &str, xml: &str) -> Result<Vec<Section>> {
-    let music = music::read(xml)?;
+    let Some(music) = music::read(xml)? else {
+        anyhow::bail!("No lyrics in music")
+    };
     let script = script::read(txt)?;
 
     let music_words = music_words(&music);
@@ -77,7 +79,7 @@ impl<'stack> std::cmp::PartialEq for Word<'stack> {
     }
 }
 
-fn music_words(part: &music::Part) -> Vec<Word> {
+fn music_words(part: &music::Music) -> Vec<Word<'_>> {
     let mut words = Vec::new();
     for phrase in &part.phrases {
         for word in &phrase.words {
@@ -90,7 +92,7 @@ fn music_words(part: &music::Part) -> Vec<Word> {
     words
 }
 
-fn script_words(script: &[script::Word]) -> Vec<Word> {
+fn script_words(script: &[script::Word]) -> Vec<Word<'_>> {
     let mut words = Vec::with_capacity(script.len());
     for word in script {
         match word {

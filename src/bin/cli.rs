@@ -1,5 +1,6 @@
 use anyhow::Result;
 use askama::Template;
+use std::path::PathBuf;
 
 use lyric_check::{
     Diff,
@@ -52,14 +53,26 @@ fn main() -> Result<()> {
             }
         }
 
+        ["music", "--folder", folder, "--from", from] =>
+            music_folder(folder, Some(from))?,
+
+        ["music", "--folder", folder] =>
+            music_folder(folder, None)?,
+
         ["music", file] => {
             let xml = std::fs::read_to_string(file)?;
-            let part = lyric_check::music::read(&xml)?;
-            for phrase in &part.phrases {
-                for word in &phrase.words {
-                    print!("{} ", word.text);
+            if let Some(music) = lyric_check::music::read(&xml)? {
+                if let Some(title) = music.title {
+                    println!(" {title}");
+                    println!("{}", "=".repeat(2 + title.len()));
+                    println!("");
                 }
-                println!("");
+                for phrase in &music.phrases {
+                    for word in &phrase.words {
+                        print!("{} ", word.text);
+                    }
+                    println!("");
+                }
             }
         }
 
@@ -78,3 +91,46 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn music_folder(folder: &str, from: Option<&str>) -> Result<()> {
+    use std::io::Write;
+
+    let folder = music_folder_list(folder)?;
+    for (name, path) in folder {
+        if let Some(from) = &from {
+            if name.as_str() < from {
+                continue;
+            }
+        }
+        println!(" ==> {name}");
+        let xml = std::fs::read_to_string(&path)?;
+        if let Some(music) = lyric_check::music::read(&xml)? {
+            let mut file = std::fs::File::create(path.with_extension("txt"))?;
+            let title = music.title.unwrap_or(name);
+            writeln!(file, " {title}")?;
+            writeln!(file, "{}", "=".repeat(2 + title.len()))?;
+            writeln!(file, "")?;
+            for phrase in &music.phrases {
+                for word in &phrase.words {
+                    write!(file, "{} ", word.text)?;
+                }
+                writeln!(file, "")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn music_folder_list(folder: &str) -> Result<Vec<(String, PathBuf)>> {
+    let mut files = Vec::new();
+
+    for entry in std::fs::read_dir(folder)? {
+        let entry = entry?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if let Some(name) = name.strip_suffix(".musicxml") {
+            files.push((name.to_owned(), path));
+        }
+    }
+    files.sort();
+    Ok(files)
+}

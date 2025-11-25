@@ -3,11 +3,11 @@ use roxmltree::{
     Document,
     Node,
 };
-use std::ops::Range;
 use std::str::FromStr;
 
 mod repeat;
 mod syllable;
+mod verse;
 mod word;
 
 use repeat::{
@@ -17,6 +17,7 @@ use repeat::{
 use syllable::{
     Syllable,
 };
+use verse::Verses;
 
 const CROTCHET: usize = 256;
 const MINIM: usize = CROTCHET + CROTCHET;
@@ -41,7 +42,12 @@ pub struct Part {
     pub phrases: Vec<Phrase>,
 }
 
-pub fn read<'str>(xml: &'str str) -> Result<Part> {
+pub struct Music {
+    pub title: Option<String>,
+    pub phrases: Vec<Phrase>,
+}
+
+pub fn read<'str>(xml: &'str str) -> Result<Option<Music>> {
     let doc = Document::parse_with_options(xml, roxmltree::ParsingOptions {
         allow_dtd: true,
         nodes_limit: u32::MAX,
@@ -58,9 +64,13 @@ pub fn read<'str>(xml: &'str str) -> Result<Part> {
 
     let mut builder = Builder::new(repeats);
 
-    //let work = child_element(root, "work")?;
-    //let title = child_element_text(work, "work-title")?;
-    //builder.title(title);
+    if let Some(work) = has_child_element(root, "work") {
+        if let Some(title) = has_child_element(work, "work-title") {
+            if let Some(title) = title.text() {
+                builder.title(title);
+            }
+        }
+    }
 
     //let parts = child_element(root, "part-list")?;
     //for part in parts.children() {
@@ -158,58 +168,57 @@ fn read_bar(builder: &mut RepeatsBuilder, bar: Node) -> Result<()> {
 }
 
 fn read_bar_line(builder: &mut RepeatsBuilder, barline: Node) -> Result<()> {
-    if let Some(location) = barline.attribute("location") {
-        let left = match location {
-            "left" => true,
-            "right" => false,
-            _ => bail!("<barline location=`{location}`>"),
-        };
-        for node in barline.children() {
-            if node.has_tag_name("ending") {
-                match attribute(node, "type")? {
-                    "start" =>
-                        assert!(left),
-
-                    "stop" | "discontinue" =>
-                        assert!(!left),
-
-                    ending =>
-                        bail!("<ending type=`{ending}`>"),
-                }
-                let verse = match attribute(node, "number")? {
-                    "1" =>
-                        Range { start: 0, end: 1 },
-                    "1,2" =>
-                        Range { start: 0, end: 2 },
-                    "2" =>
-                        Range { start: 1, end: 2 },
-                    "3" =>
-                        Range { start: 2, end: 3 },
-                    number =>
-                        bail!("<ending number=`{number}`>"),
-                };
-                if left {
-                    builder.ending_start(verse);
-                } else {
-                    builder.ending_end(verse);
-                }
-            } else if node.has_tag_name("repeat") {
-                match attribute(node, "direction")? {
-                    "forward" => {
-                        assert!(left);
-                        builder.repeat_start();
-                    }
-
-                    "backward" => {
-                        assert!(!left);
-                        builder.repeat_end();
-                    }
-
+    match barline.attribute("location") {
+        Some("left") => {
+            // repeat before ending
+            if let Some(repeat) = has_child_element(barline, "repeat") {
+                match attribute(repeat, "direction")? {
+                    "forward" =>
+                        (),
                     direction =>
-                        bail!("<repeat direction=`{direction}`>"),
+                        bail!("<barline location=`left`><repeat direction=`{direction}`>"),
                 }
+                builder.repeat_start()?;
+            }
+            if let Some(ending) = has_child_element(barline, "ending") {
+                match attribute(ending, "type")? {
+                    "start" =>
+                        (),
+                    ending =>
+                        bail!("<barline location=`left`><ending type=`{ending}`>"),
+                }
+                let verses: Verses = attribute(ending, "number")?.parse()?;
+                builder.ending_start(verses)?;
             }
         }
+        Some("right") => {
+            // repeat after ending
+            if let Some(ending) = has_child_element(barline, "ending") {
+                let last = match attribute(ending, "type")? {
+                    "stop" =>
+                        false,
+                    "discontinue" =>
+                        true,
+                    ending =>
+                        bail!("<barline location=`right`><ending type=`{ending}`>"),
+                };
+                let verses: Verses = attribute(ending, "number")?.parse()?;
+                builder.ending_end(verses, last)?;
+            }
+            if let Some(repeat) = has_child_element(barline, "repeat") {
+                match attribute(repeat, "direction")? {
+                    "backward" =>
+                        (),
+                    direction =>
+                        bail!("<barline location=`right`><repeat direction=`{direction}`>"),
+                }
+                builder.repeat_end()?;
+            }
+        }
+        Some(location) =>
+            bail!("<barline location=`{location}`>"),
+        None =>
+            {},
     }
     Ok(())
 }
@@ -272,12 +281,18 @@ fn read_part_note<'xml, 'str: 'xml>(
         }
         let voice = voice - 1;
         let verse = attribute(lyric, "number")?;
-        let verse = if verse.ends_with("verse1") {
+        let verse = if verse.ends_with("verse1") || verse.ends_with("chorus") {
             0
         } else if verse.ends_with("verse2") {
             1
         } else if verse.ends_with("verse3") {
             2
+        } else if verse.ends_with("verse4") {
+            3
+        } else if verse.ends_with("verse5") {
+            4
+        } else if verse.ends_with("verse6") {
+            5
         } else {
             bail!("<lyric number=`{verse}`>");
         };
@@ -343,6 +358,7 @@ fn duration_of(node: Node) -> Result<usize> {
 }
 
 struct Builder<'xml> {
+    title: Option<String>,
     repeats: Repeats,
     next_number: usize,
     bar_tick: usize,
@@ -355,12 +371,17 @@ impl<'dom> Builder<'dom> {
         let next_number = repeats.first_bar_number();
         let bar_count = repeats.bar_count();
         Builder {
+            title: None,
             repeats,
             next_number,
             bar_tick: 0,
             syllables: syllable::Builder::new(bar_count),
             parts: Vec::new(),
         }
+    }
+
+    fn title(&mut self, title: &str) {
+        self.title = Some(String::from(title));
     }
 
     fn part_end(&mut self) {
@@ -406,16 +427,22 @@ impl<'dom> Builder<'dom> {
         });
     }
 
-    fn build(self) -> Result<Part> {
+    fn build(self) -> Result<Option<Music>> {
         let mut parts = self.parts.into_iter();
-        let mut part = parts.next().unwrap();
-        let mut from = 0;
-        for other in parts {
-            for phrase in other.phrases {
-                from = part.merge(phrase, from);
+        if let Some(mut part) = parts.next() {
+            let mut from = 0;
+            for other in parts {
+                for phrase in other.phrases {
+                    from = part.merge(phrase, from);
+                }
             }
+            Ok(Some(Music {
+                title: self.title,
+                phrases: part.phrases,
+            }))
+        } else {
+            Ok(None)
         }
-        Ok(part)
     }
 }
 

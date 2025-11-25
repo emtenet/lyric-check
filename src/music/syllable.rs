@@ -48,13 +48,16 @@ pub struct Syllable<'xml> {
 
 #[derive(Debug)]
 struct Bar<'xml> {
-    verse: [Vec<Syllable<'xml>>; 3],
+    verse: [Vec<Syllable<'xml>>; 6],
 }
 
 impl<'xml> Bar<'xml> {
     fn new() -> Self {
         Bar {
             verse: [
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
                 Vec::new(),
                 Vec::new(),
                 Vec::new(),
@@ -68,7 +71,7 @@ impl<'xml> Bar<'xml> {
         }
     }
 
-    fn iter(&self, verse: Option<usize>, tick: usize) -> Iter {
+    fn iter(&self, verse: Option<usize>, tick: usize) -> Iter<'_> {
         if let Some(verse) = verse {
             if verse > 0 && !self.verse[verse].is_empty() {
                 return Iter {
