@@ -115,6 +115,8 @@ fn music_folder(folder: &str, from: Option<&str>) -> Result<()> {
                 }
                 writeln!(file, "")?;
             }
+            writeln!(file, "")?;
+            writeln!(file, "")?;
         }
     }
     Ok(())
