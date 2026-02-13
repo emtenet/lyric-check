@@ -12,5 +12,5 @@ release:
 sign: release
 	del lyric-check.exe
 	copy "target\\release\\lyric-check.exe" lyric-check-to-be-signed.exe
-	$(SIGN) sign /a /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 /v lyric-check-to-be-signed.exe
+	$(SIGN) sign /n Omniscient /tr http://timestamp.globalsign.com/tsa/r45standard /td SHA256 /fd SHA256 /v lyric-check-to-be-signed.exe
 	ren lyric-check-to-be-signed.exe lyric-check.exe
